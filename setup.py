@@ -8,6 +8,6 @@ setup(
     packages=['twitterbot'],
     description='A simple Python framework for creating Twitter bots.',
     install_requires=[
-        "tweepy >= 2.3"
+        "twython >= 3.1.2"
     ],
 )

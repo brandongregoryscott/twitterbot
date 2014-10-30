@@ -11,7 +11,7 @@ import os
 import codecs
 import json
 import logging
-import tweepy
+import twython
 import time
 import re
 import random
@@ -28,6 +28,10 @@ def ignore(method):
     method.not_implemented = True
     return method
 
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
 
 class TwitterBot:
 
@@ -60,12 +64,11 @@ class TwitterBot:
         # call the custom initialization
         self.bot_init()
 
-        auth = tweepy.OAuthHandler(self.config['api_key'], self.config['api_secret'])
+        self.api = twython.Twython(self.config['api_key'], self.config['api_secret'])
         auth.set_access_token(self.config['access_key'], self.config['access_secret'])
-        self.api = tweepy.API(auth)
 
-        self.id = self.api.me().id
-        self.screen_name = self.api.me().screen_name
+        self.id = self.api.verify_credentials().["id"]
+        self.screen_name = self.api.verify_credentials()["screen_name"]
 
         logging.basicConfig(format='%(asctime)s | %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', 
             filename=self.screen_name + '.log',
@@ -93,8 +96,8 @@ class TwitterBot:
             self.state['recent_timeline'] = []
             self.state['mention_queue'] = []
 
-        self.state['friends'] = self.api.friends_ids(self.id)
-        self.state['followers'] = self.api.followers_ids(self.id)
+        self.state['friends'] = self.api.get_friends_ids()["ids"]
+        self.state['followers'] = self.api.get_followers_ids()["ids"]
         self.state['new_followers'] = []
         self.state['last_follow_check'] = 0
 
@@ -115,7 +118,7 @@ class TwitterBot:
             logging.info(message)
 
 
-    def _log_tweepy_error(self, message, e):
+    def _log_twython_error(self, message, e):
         try:
             e_message = e.message[0]['message']
             code = e.message[0]['code']
@@ -165,11 +168,11 @@ class TwitterBot:
         """
         if self.config['autofollow']:
             try:
-                self.api.create_friendship(f_id, follow=True)
+                self.api.create_friendship(user_id=f_id, follow=True)
                 self.state['friends'].append(f_id)
                 logging.info('Followed user id {}'.format(f_id))
-            except tweepy.TweepError as e:
-                self._log_tweepy_error('Unable to follow user', e)
+            except twython.TythonError as e:
+                self._log_twython_error('Unable to follow user', e)
 
             time.sleep(3)
 
@@ -180,7 +183,7 @@ class TwitterBot:
         kwargs = {}
         args = [text]
         if media is not None:
-            cmd = self.api.update_with_media
+            cmd = self.api.update_status_with_media
             args.insert(0, media)
         else:
             cmd = self.api.update_status
@@ -197,8 +200,8 @@ class TwitterBot:
             self.log('Status posted at {}'.format(self._tweet_url(tweet)))
             return True
 
-        except tweepy.TweepError as e:
-            self._log_tweepy_error('Can\'t post status', e)
+        except twython.TythonError as e:
+            self._log_twython_error('Can\'t post status', e)
             return False
 
 
@@ -207,8 +210,8 @@ class TwitterBot:
             logging.info('Faving ' + self._tweet_url(tweet))
             self.api.create_favorite(tweet.id)
 
-        except tweepy.TweepError as e:
-            self._log_tweepy_error('Can\'t fav status', e)
+        except twython.TwythonError as e:
+            self._log_twython_error('Can\'t fav status', e)
 
 
     def _ignore_method(self, method):
@@ -269,7 +272,11 @@ class TwitterBot:
             return
 
         try:
-            current_mentions = self.api.mentions_timeline(since_id=self.state['last_mention_id'], count=100)
+            current_mentions_response = self.api.get_mentions_timeline(since_id=self.state['last_mention_id'], count=100)
+
+            #convert to AttrDict and get just statuses
+            wrap = lambda x: AttrDict([(k,v) if not isinstance(v, dict) else (k, wrap(v)) for k, v in x.items()])
+            current_mentions = map(wrap, current_mentions_response["statuses"])
 
             # direct mentions only?
             if self.config['reply_direct_mention_only']:
@@ -284,8 +291,8 @@ class TwitterBot:
 
             logging.info('Mentions updated ({} retrieved, {} total in queue)'.format(len(current_mentions), len(self.state['mention_queue'])))
 
-        except tweepy.TweepError as e:
-            self._log_tweepy_error('Can\'t retrieve mentions', e)
+        except twython.TwythonError as e:
+            self._log_twython_error('Can\'t retrieve mentions', e)
 
         except IncompleteRead as e:
             self.log('Incomplete read error -- skipping mentions update')
@@ -300,11 +307,15 @@ class TwitterBot:
             return
 
         try:
-            current_timeline = self.api.home_timeline(count=200, since_id=self.state['last_timeline_id'])
+            current_timeline_reponse = self.api.get_home_timeline(count=200, since_id=self.state['last_timeline_id'])
+
+            # convert to AttrDict and get just statues
+            wrap = lambda x: AttrDict([(k,v) if not isinstance(v, dict) else (k, wrap(v)) for k, v in x.items()])
+            current_timeline = map(wrap, current_timeline_response["statuses"])
 
             # remove my tweets
-            current_timeline = [t for t in current_timeline if t.author.screen_name.lower() != self.screen_name.lower()]
-
+            current_timeline = [t for t in current_timeline if t.user.screen_name.lower() != self.screen_name.lower()]
+            
             # remove all tweets mentioning me
             current_timeline = [t for t in current_timeline if not re.search('@'+self.screen_name, t.text, flags=re.IGNORECASE)]
 
@@ -321,8 +332,8 @@ class TwitterBot:
 
             logging.info('Timeline updated ({} retrieved)'.format(len(current_timeline)))
 
-        except tweepy.TweepError as e:
-            self._log_tweepy_error('Can\'t retrieve timeline', e)
+        except twython.TwythonError as e:
+            self._log_twython_error('Can\'t retrieve timeline', e)
 
         except IncompleteRead as e:
             self.log('Incomplete read error -- skipping timeline update')
@@ -335,12 +346,12 @@ class TwitterBot:
         logging.info("Checking for new followers...")
 
         try:
-            self.state['new_followers'] = [f_id for f_id in self.api.followers_ids(self.id) if f_id not in self.state['followers']]
+            self.state['new_followers'] = [f_id for f_id in self.api.get_followers_ids()["ids"] if f_id not in self.state['followers']]
 
             self.config['last_follow_check'] = time.time()
 
-        except tweepy.TweepError as e:
-            self._log_tweepy_error('Can\'t update followers', e)
+        except twython.TwythonError as e:
+            self._log_twython_error('Can\'t update followers', e)
 
         except IncompleteRead as e:
             self.log('Incomplete read error -- skipping followers update')
