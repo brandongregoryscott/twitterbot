@@ -27,11 +27,6 @@ def ignore(method):
     method.not_implemented = True
     return method
 
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
 class TwitterBot:
 
     def __init__(self):
