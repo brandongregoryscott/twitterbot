@@ -173,7 +173,7 @@ class TwitterBot:
 
 
     def post_tweet(self, text, reply_to=None, media=None):
-        kwargs = {}
+        kwargs = dict()
         kwargs['status'] = text
         cmd = self.api.update_status
 
@@ -202,7 +202,7 @@ class TwitterBot:
     def favorite_tweet(self, tweet):
         try:
             logging.info('Faving ' + self._tweet_url(tweet))
-            self.api.create_favorite(tweet['id'])
+            self.api.create_favorite(id=tweet['id'])
 
         except twython.TwythonError as e:
             self._log_twython_error('Can\'t fav status', e)
@@ -354,7 +354,7 @@ class TwitterBot:
         """
         Register a custom action to run at some interval.
         """
-        handler = {}
+        handler = dict()
 
         handler['action'] = action
         handler['interval'] = interval
