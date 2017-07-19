@@ -19,7 +19,6 @@ import pickle as pickle
 
 from http.client import IncompleteRead
 
-
 def ignore(method):
     """
     Use the @ignore decorator on TwitterBot methods you wish to leave
@@ -170,7 +169,7 @@ class TwitterBot:
                 self.api.create_friendship(user_id=f_id, follow=True)
                 self.state['friends'].append(f_id)
                 logging.info('Followed user id {}'.format(f_id))
-            except twython.TythonError as e:
+            except twython.TwythonError as e:
                 self._log_twython_error('Unable to follow user', e)
 
             time.sleep(3)
@@ -180,26 +179,27 @@ class TwitterBot:
 
     def post_tweet(self, text, reply_to=None, media=None):
         kwargs = {}
-        args = [text]
-        if media is not None:
-            cmd = self.api.update_status_with_media
-            args.insert(0, media)
-        else:
-            cmd = self.api.update_status
+        kwargs['status'] = text
+        cmd = self.api.update_status
 
         try:
             self.log('Tweeting "{}"'.format(text))
+
+            if media is not None:
+                media_response = self.api.upload_media(media=media)
+                kwargs['media_ids'] = [media_response["media_id"]]
+                self.log("-- Uploaded media id {}".format(media_response["media_id"]))
             if reply_to:
                 self.log("-- Responding to status {}".format(self._tweet_url(reply_to)))
-                kwargs['in_reply_to_status_id'] = reply_to.id
+                kwargs['in_reply_to_status_id'] = reply_to['id']
             else:
                 self.log("-- Posting to own timeline")
 
-            tweet = cmd(*args, **kwargs)
+            tweet = cmd(**kwargs)
             self.log('Status posted at {}'.format(self._tweet_url(tweet)))
             return True
 
-        except twython.TythonError as e:
+        except twython.TwythonError as e:
             self._log_twython_error('Can\'t post status', e)
             return False
 
@@ -207,7 +207,7 @@ class TwitterBot:
     def favorite_tweet(self, tweet):
         try:
             logging.info('Faving ' + self._tweet_url(tweet))
-            self.api.create_favorite(tweet.id)
+            self.api.create_favorite(tweet['id'])
 
         except twython.TwythonError as e:
             self._log_twython_error('Can\'t fav status', e)
