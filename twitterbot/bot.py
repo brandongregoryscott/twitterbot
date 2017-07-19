@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*- #
 #
 # bot.py
@@ -15,9 +15,9 @@ import twython
 import time
 import re
 import random
-import cPickle as pickle
+import pickle as pickle
 
-from httplib import IncompleteRead
+from http.client import IncompleteRead
 
 
 def ignore(method):
@@ -64,10 +64,9 @@ class TwitterBot:
         # call the custom initialization
         self.bot_init()
 
-        self.api = twython.Twython(self.config['api_key'], self.config['api_secret'])
-        auth.set_access_token(self.config['access_key'], self.config['access_secret'])
+        self.api = twython.Twython(self.config['api_key'], self.config['api_secret'], self.config['access_key'], self.config['access_secret'])
 
-        self.id = self.api.verify_credentials().["id"]
+        self.id = self.api.verify_credentials()["id"]
         self.screen_name = self.api.verify_credentials()["screen_name"]
 
         logging.basicConfig(format='%(asctime)s | %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', 
@@ -128,7 +127,7 @@ class TwitterBot:
 
 
     def _tweet_url(self, tweet):
-        return "http://twitter.com/" + tweet.author.screen_name + "/status/" + str(tweet.id)
+        return "http://twitter.com/" + tweet['user']['screen_name'] + "/status/" + tweet['id_str']
 
 
     def _save_state(self):
@@ -254,11 +253,11 @@ class TwitterBot:
         """
         Returns a string of users to @-mention when responding to a tweet.
         """
-        mention_back = ['@' + tweet.author.screen_name]
-        mention_back += [s for s in re.split('[^@\w]', tweet.text) if len(s) > 2 and s[0] == '@' and s[1:] != self.screen_name]
+        mention_back = ['@' + tweet['user']['screen_name']]
+        mention_back += [s for s in re.split('[^@\w]', tweet['text']) if len(s) > 2 and s[0] == '@' and s[1:] != self.screen_name]
 
         if self.config['reply_followers_only']:
-            mention_back = [s for s in mention_back if s[1:] in self.state['followers'] or s == '@' + tweet.author.screen_name]
+            mention_back = [s for s in mention_back if s[1:] in self.state['followers'] or s == '@' + tweet['user']['screen_name']]
 
         return ' '.join(mention_back)
 
@@ -272,18 +271,14 @@ class TwitterBot:
             return
 
         try:
-            current_mentions_response = self.api.get_mentions_timeline(since_id=self.state['last_mention_id'], count=100)
-
-            #convert to AttrDict and get just statuses
-            wrap = lambda x: AttrDict([(k,v) if not isinstance(v, dict) else (k, wrap(v)) for k, v in x.items()])
-            current_mentions = map(wrap, current_mentions_response["statuses"])
+            current_mentions = self.api.get_mentions_timeline(since_id=self.state['last_mention_id'], count=100)
 
             # direct mentions only?
             if self.config['reply_direct_mention_only']:
-                current_mentions = [t for t in current_mentions if re.split('[^@\w]', t.text)[0] == '@' + self.screen_name]
+                current_mentions = [t for t in current_mentions if re.split('[^@\w]', t['text'])[0] == '@' + self.screen_name]
 
             if len(current_mentions) != 0:
-                self.state['last_mention_id'] = current_mentions[0].id
+                self.state['last_mention_id'] = current_mentions[0]['id']
             
             self.state['last_mention_time'] = time.time()
 
@@ -307,24 +302,20 @@ class TwitterBot:
             return
 
         try:
-            current_timeline_reponse = self.api.get_home_timeline(count=200, since_id=self.state['last_timeline_id'])
-
-            # convert to AttrDict and get just statues
-            wrap = lambda x: AttrDict([(k,v) if not isinstance(v, dict) else (k, wrap(v)) for k, v in x.items()])
-            current_timeline = map(wrap, current_timeline_response["statuses"])
+            current_timeline = self.api.get_home_timeline(count=200, since_id=self.state['last_timeline_id'])
 
             # remove my tweets
-            current_timeline = [t for t in current_timeline if t.user.screen_name.lower() != self.screen_name.lower()]
+            current_timeline = [t for t in current_timeline if t['user']['screen_name'].lower() != self.screen_name.lower()]
             
             # remove all tweets mentioning me
-            current_timeline = [t for t in current_timeline if not re.search('@'+self.screen_name, t.text, flags=re.IGNORECASE)]
+            current_timeline = [t for t in current_timeline if not re.search('@'+self.screen_name, t['text'], flags=re.IGNORECASE)]
 
             if self.config['ignore_timeline_mentions']:
                 # remove all tweets with mentions (heuristically)
-                current_timeline = [t for t in current_timeline if '@' not in t.text]
+                current_timeline = [t for t in current_timeline if '@' not in t['text']]
 
             if len(current_timeline) != 0:
-                self.state['last_timeline_id'] = current_timeline[0].id
+                self.state['last_timeline_id'] = current_timeline[0]['id']
             
             self.state['last_timeline_time'] = time.time()
 
@@ -442,7 +433,7 @@ class FileStorage(object):
             logging.debug("Reading from {}".format(filename))
         else:
             logging.debug("{} doesn't exist".format(filename))
-        return open(filename)
+        return open(filename, 'rb')
 
 
     def write(self, name):
