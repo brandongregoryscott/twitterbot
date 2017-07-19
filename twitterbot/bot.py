@@ -19,6 +19,7 @@ import pickle as pickle
 
 from http.client import IncompleteRead
 
+
 def ignore(method):
     """
     Use the @ignore decorator on TwitterBot methods you wish to leave
@@ -27,8 +28,8 @@ def ignore(method):
     method.not_implemented = True
     return method
 
-class TwitterBot:
 
+class TwitterBot:
     def __init__(self):
         self.config = {}
 
@@ -58,14 +59,15 @@ class TwitterBot:
         # call the custom initialization
         self.bot_init()
 
-        self.api = twython.Twython(self.config['api_key'], self.config['api_secret'], self.config['access_key'], self.config['access_secret'])
+        self.api = twython.Twython(self.config['api_key'], self.config['api_secret'], self.config['access_key'],
+                                   self.config['access_secret'])
 
         self.id = self.api.verify_credentials()["id"]
         self.screen_name = self.api.verify_credentials()["screen_name"]
 
-        logging.basicConfig(format='%(asctime)s | %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', 
-            filename=self.screen_name + '.log',
-            level=self.config['logging_level'])
+        logging.basicConfig(format='%(asctime)s | %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p',
+                            filename=self.screen_name + '.log',
+                            level=self.config['logging_level'])
 
         logging.info('Initializing bot...')
 
@@ -96,20 +98,17 @@ class TwitterBot:
 
         logging.info('Bot initialized!')
 
-
     def bot_init(self):
         """
         Initialize custom state values for your bot.
         """
         raise NotImplementedError("You MUST have bot_init() implemented in your bot! What have you DONE!")
 
-
     def log(self, message, level=logging.INFO):
         if level == logging.ERROR:
             logging.error(message)
         else:
             logging.info(message)
-
 
     def _log_twython_error(self, message, e):
         try:
@@ -119,41 +118,35 @@ class TwitterBot:
         except:
             self.log(message, e)
 
-
     def _tweet_url(self, tweet):
         return "http://twitter.com/" + tweet['user']['screen_name'] + "/status/" + tweet['id_str']
-
 
     def _save_state(self):
         with self.config['storage'].write(self.screen_name) as f:
             pickle.dump(self.state, f)
             self.log('Bot state saved')
 
-
     def on_scheduled_tweet(self):
         """
         Post a general tweet to own timeline.
         """
-        #self.post_tweet(text)
+        # self.post_tweet(text)
         raise NotImplementedError("You need to implement this to tweet to timeline (or pass if you don't want to)!")
-
 
     def on_mention(self, tweet, prefix):
         """
         Perform some action upon receiving a mention.
         """
-        #self.post_tweet(text)
+        # self.post_tweet(text)
         raise NotImplementedError("You need to implement this to reply to/fav mentions (or pass if you don't want to)!")
-
-
 
     def on_timeline(self, tweet, prefix):
         """
         Perform some action on a tweet on the timeline.
         """
-        #self.post_tweet(text)
-        raise NotImplementedError("You need to implement this to reply to/fav timeline tweets (or pass if you don't want to)!")
-
+        # self.post_tweet(text)
+        raise NotImplementedError(
+            "You need to implement this to reply to/fav timeline tweets (or pass if you don't want to)!")
 
     def on_follow(self, f_id):
         """
@@ -170,7 +163,6 @@ class TwitterBot:
             time.sleep(3)
 
         self.state['followers'].append(f_id)
-
 
     def post_tweet(self, text, reply_to=None, media=None):
         kwargs = dict()
@@ -198,7 +190,6 @@ class TwitterBot:
             self._log_twython_error('Can\'t post status', e)
             return False
 
-
     def favorite_tweet(self, tweet):
         try:
             logging.info('Faving ' + self._tweet_url(tweet))
@@ -207,10 +198,8 @@ class TwitterBot:
         except twython.TwythonError as e:
             self._log_twython_error('Can\'t fav status', e)
 
-
     def _ignore_method(self, method):
         return hasattr(method, 'not_implemented') and method.not_implemented
-
 
     def _handle_timeline(self):
         """
@@ -225,8 +214,7 @@ class TwitterBot:
             if any(w in words for w in self.config['autofav_keywords']):
                 self.favorite_tweet(tweet)
 
-            #time.sleep(self.config['reply_interval'])
-
+                # time.sleep(self.config['reply_interval'])
 
     def _handle_mentions(self):
         """
@@ -241,21 +229,21 @@ class TwitterBot:
             if self.config['autofav_mentions']:
                 self.favorite_tweet(mention)
 
-            #time.sleep(self.config['reply_interval'])
-
+                # time.sleep(self.config['reply_interval'])
 
     def get_mention_prefix(self, tweet):
         """
         Returns a string of users to @-mention when responding to a tweet.
         """
         mention_back = ['@' + tweet['user']['screen_name']]
-        mention_back += [s for s in re.split('[^@\w]', tweet['text']) if len(s) > 2 and s[0] == '@' and s[1:] != self.screen_name]
+        mention_back += [s for s in re.split('[^@\w]', tweet['text']) if
+                         len(s) > 2 and s[0] == '@' and s[1:] != self.screen_name]
 
         if self.config['reply_followers_only']:
-            mention_back = [s for s in mention_back if s[1:] in self.state['followers'] or s == '@' + tweet['user']['screen_name']]
+            mention_back = [s for s in mention_back if
+                            s[1:] in self.state['followers'] or s == '@' + tweet['user']['screen_name']]
 
         return ' '.join(mention_back)
-
 
     def _check_mentions(self):
         """
@@ -270,23 +258,24 @@ class TwitterBot:
 
             # direct mentions only?
             if self.config['reply_direct_mention_only']:
-                current_mentions = [t for t in current_mentions if re.split('[^@\w]', t['text'])[0] == '@' + self.screen_name]
+                current_mentions = [t for t in current_mentions if
+                                    re.split('[^@\w]', t['text'])[0] == '@' + self.screen_name]
 
             if len(current_mentions) != 0:
                 self.state['last_mention_id'] = current_mentions[0]['id']
-            
+
             self.state['last_mention_time'] = time.time()
 
             self.state['mention_queue'] += reversed(current_mentions)
 
-            logging.info('Mentions updated ({} retrieved, {} total in queue)'.format(len(current_mentions), len(self.state['mention_queue'])))
+            logging.info('Mentions updated ({} retrieved, {} total in queue)'.format(len(current_mentions),
+                                                                                     len(self.state['mention_queue'])))
 
         except twython.TwythonError as e:
             self._log_twython_error('Can\'t retrieve mentions', e)
 
         except IncompleteRead as e:
             self.log('Incomplete read error -- skipping mentions update')
-
 
     def _check_timeline(self):
         """
@@ -300,10 +289,12 @@ class TwitterBot:
             current_timeline = self.api.get_home_timeline(count=200, since_id=self.state['last_timeline_id'])
 
             # remove my tweets
-            current_timeline = [t for t in current_timeline if t['user']['screen_name'].lower() != self.screen_name.lower()]
-            
+            current_timeline = [t for t in current_timeline if
+                                t['user']['screen_name'].lower() != self.screen_name.lower()]
+
             # remove all tweets mentioning me
-            current_timeline = [t for t in current_timeline if not re.search('@'+self.screen_name, t['text'], flags=re.IGNORECASE)]
+            current_timeline = [t for t in current_timeline if
+                                not re.search('@' + self.screen_name, t['text'], flags=re.IGNORECASE)]
 
             if self.config['ignore_timeline_mentions']:
                 # remove all tweets with mentions (heuristically)
@@ -311,7 +302,7 @@ class TwitterBot:
 
             if len(current_timeline) != 0:
                 self.state['last_timeline_id'] = current_timeline[0]['id']
-            
+
             self.state['last_timeline_time'] = time.time()
 
             self.state['recent_timeline'] = list(reversed(current_timeline))
@@ -324,7 +315,6 @@ class TwitterBot:
         except IncompleteRead as e:
             self.log('Incomplete read error -- skipping timeline update')
 
-
     def _check_followers(self):
         """
         Checks followers.
@@ -332,7 +322,8 @@ class TwitterBot:
         logging.info("Checking for new followers...")
 
         try:
-            self.state['new_followers'] = [f_id for f_id in self.api.get_followers_ids()["ids"] if f_id not in self.state['followers']]
+            self.state['new_followers'] = [f_id for f_id in self.api.get_followers_ids()["ids"] if
+                                           f_id not in self.state['followers']]
 
             self.config['last_follow_check'] = time.time()
 
@@ -342,7 +333,6 @@ class TwitterBot:
         except IncompleteRead as e:
             self.log('Incomplete read error -- skipping followers update')
 
-            
     def _handle_followers(self):
         """
         Handles new followers.
@@ -367,21 +357,21 @@ class TwitterBot:
         Runs the bot! This probably shouldn't be in a "while True" lol.
         """
         while True:
-            
+
             # check followers every 15 minutes
-            #if self.autofollow and (time.time() - self.last_follow_check) > (15 * 60): 
-            if self.state['last_follow_check'] > (15 * 60): 
+            # if self.autofollow and (time.time() - self.last_follow_check) > (15 * 60):
+            if self.state['last_follow_check'] > (15 * 60):
                 self._check_followers()
                 self._handle_followers()
 
             # check mentions every minute-ish
-            #if self.reply_to_mentions and (time.time() - self.last_mention_time) > 60:
+            # if self.reply_to_mentions and (time.time() - self.last_mention_time) > 60:
             if (time.time() - self.state['last_mention_time']) > 60:
                 self._check_mentions()
                 self._handle_mentions()
 
             # tweet to timeline
-            #if self.reply_to_timeline and (time.time() - self.last_mention_time) > 60:
+            # if self.reply_to_timeline and (time.time() - self.last_mention_time) > 60:
             if (time.time() - self.state['last_timeline_time']) > 60:
                 self._check_timeline()
                 self._handle_timeline()
@@ -417,7 +407,6 @@ class FileStorage(object):
     Adapters must implement two methods: read(name) and write(name).
     """
 
-
     def read(self, name):
         """
         Return an IO-like object that will produce binary data when read from.
@@ -430,7 +419,6 @@ class FileStorage(object):
             logging.debug("{} doesn't exist".format(filename))
         return open(filename, 'rb')
 
-
     def write(self, name):
         """
         Return an IO-like object that will store binary data written to it.
@@ -441,7 +429,6 @@ class FileStorage(object):
         else:
             logging.debug("Creating {}".format(filename))
         return open(filename, 'wb')
-
 
     def _get_filename(self, name):
         return '{}_state.pkl'.format(name)
