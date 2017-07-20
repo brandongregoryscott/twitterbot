@@ -8,6 +8,7 @@ from __future__ import division
 from __future__ import unicode_literals
 
 import os
+import sys
 import codecs
 import json
 import logging
@@ -52,6 +53,8 @@ class TwitterBot:
         self.config['ignore_timeline_mentions'] = True
 
         self.config['logging_level'] = logging.DEBUG
+        self.config['logging_format'] = '%(asctime)s | %(levelname)s: %(message)s'
+        self.config['logging_datefmt'] = '%m/%d/%Y %I:%M:%S %p'
         self.config['storage'] = FileStorage()
 
         self.state = {}
@@ -65,11 +68,19 @@ class TwitterBot:
         self.id = self.api.verify_credentials()["id"]
         self.screen_name = self.api.verify_credentials()["screen_name"]
 
-        logging.basicConfig(format='%(asctime)s | %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p',
-                            filename=self.screen_name + '.log',
-                            level=self.config['logging_level'])
+        logging.basicConfig(filename=self.screen_name + '.log',
+                            level=self.config['logging_level'],
+                            format=self.config['logging_format'],
+                            datefmt=self.config['logging_datefmt'])
 
-        logging.info('Initializing bot...')
+        self.log = logging.getLogger(self.screen_name)
+        self.log.setLevel(self.config['logging_level'])
+        stdout_handler = logging.StreamHandler(sys.stdout)
+        stdout_handler.setFormatter(logging.Formatter(fmt=self.config['logging_format'], datefmt=self.config['logging_datefmt']))
+        stdout_handler.setLevel(logging.INFO)
+        self.log.addHandler(stdout_handler)
+
+        self.log.info('Initializing bot...')
 
         try:
             with self.config['storage'].read(self.screen_name) as f:
@@ -102,7 +113,7 @@ class TwitterBot:
         self.state['new_followers'] = []
         self.state['last_follow_check'] = 0
 
-        logging.info('Bot initialized!')
+        self.log.info('Bot initialized!')
 
     def bot_init(self):
         """
@@ -110,19 +121,13 @@ class TwitterBot:
         """
         raise NotImplementedError("You MUST have bot_init() implemented in your bot! What have you DONE!")
 
-    def log(self, message, level=logging.INFO):
-        if level == logging.ERROR:
-            logging.error(message)
-        else:
-            logging.info(message)
-
     def _log_twython_error(self, message, e):
         try:
             e_message = e.message[0]['message']
             code = e.message[0]['code']
-            self.log("{}: {} ({})".format(message, e_message, code), level=logging.ERROR)
+            self.log.error("{}: {} ({})".format(message, e_message, code))
         except:
-            self.log(message, e)
+            self.log.error(message)
 
     def _tweet_url(self, tweet):
         return "http://twitter.com/" + tweet['user']['screen_name'] + "/status/" + tweet['id_str']
@@ -130,7 +135,7 @@ class TwitterBot:
     def _save_state(self):
         with self.config['storage'].write(self.screen_name) as f:
             pickle.dump(self.state, f)
-            self.log('Bot state saved')
+            self.log.info('Bot state saved')
 
     def on_scheduled_tweet(self):
         """
@@ -162,7 +167,7 @@ class TwitterBot:
             try:
                 self.api.create_friendship(user_id=f_id, follow=True)
                 self.state['friends'].append(f_id)
-                logging.info('Followed user id {}'.format(f_id))
+                self.log.info('Followed user id {}'.format(f_id))
             except twython.TwythonError as e:
                 self._log_twython_error('Unable to follow user', e)
 
@@ -176,20 +181,20 @@ class TwitterBot:
         cmd = self.api.update_status
 
         try:
-            self.log('Tweeting "{}"'.format(text))
+            self.log.info('Tweeting "{}"'.format(text))
 
             if media is not None:
                 media_response = self.api.upload_media(media=media)
                 kwargs['media_ids'] = [media_response["media_id"]]
-                self.log("-- Uploaded media id {}".format(media_response["media_id"]))
+                self.log.info("-- Uploaded media id {}".format(media_response["media_id"]))
             if reply_to:
-                self.log("-- Responding to status {}".format(self._tweet_url(reply_to)))
+                self.log.info("-- Responding to status {}".format(self._tweet_url(reply_to)))
                 kwargs['in_reply_to_status_id'] = reply_to['id']
             else:
-                self.log("-- Posting to own timeline")
+                self.log.info("-- Posting to own timeline")
 
             tweet = cmd(**kwargs)
-            self.log('Status posted at {}'.format(self._tweet_url(tweet)))
+            self.log.info('Status posted at {}'.format(self._tweet_url(tweet)))
             return True
 
         except twython.TwythonError as e:
@@ -198,7 +203,7 @@ class TwitterBot:
 
     def favorite_tweet(self, tweet):
         try:
-            logging.info('Faving ' + self._tweet_url(tweet))
+            self.log.info('Faving ' + self._tweet_url(tweet))
             self.api.create_favorite(id=tweet['id'])
 
         except twython.TwythonError as e:
@@ -274,14 +279,14 @@ class TwitterBot:
 
             self.state['mention_queue'] += reversed(current_mentions)
 
-            logging.info('Mentions updated ({} retrieved, {} total in queue)'.format(len(current_mentions),
-                                                                                     len(self.state['mention_queue'])))
+            self.log.info('Mentions updated ({} retrieved, {} total in queue)'.format(len(current_mentions),
+                                                                                      len(self.state['mention_queue'])))
 
         except twython.TwythonError as e:
             self._log_twython_error('Can\'t retrieve mentions', e)
 
         except IncompleteRead as e:
-            self.log('Incomplete read error -- skipping mentions update')
+            self.log.error('Incomplete read error -- skipping mentions update')
 
     def _check_timeline(self):
         """
@@ -313,19 +318,19 @@ class TwitterBot:
 
             self.state['recent_timeline'] = list(reversed(current_timeline))
 
-            logging.info('Timeline updated ({} retrieved)'.format(len(current_timeline)))
+            self.log.info('Timeline updated ({} retrieved)'.format(len(current_timeline)))
 
         except twython.TwythonError as e:
             self._log_twython_error('Can\'t retrieve timeline', e)
 
         except IncompleteRead as e:
-            self.log('Incomplete read error -- skipping timeline update')
+            self.log.error('Incomplete read error -- skipping timeline update')
 
     def _check_followers(self):
         """
         Checks followers.
         """
-        logging.info("Checking for new followers...")
+        self.log.info("Checking for new followers...")
 
         try:
             self.state['new_followers'] = [f_id for f_id in self.api.get_followers_ids()["ids"] if
@@ -337,7 +342,7 @@ class TwitterBot:
             self._log_twython_error('Can\'t update followers', e)
 
         except IncompleteRead as e:
-            self.log('Incomplete read error -- skipping followers update')
+            self.log.error('Incomplete read error -- skipping followers update')
 
     def _handle_followers(self):
         """
@@ -390,7 +395,7 @@ class TwitterBot:
                 if self.config['tweet_interval_range'] is not None:
                     self.config['tweet_interval'] = random.randint(*self.config['tweet_interval_range'])
 
-                self.log("Next tweet in {} seconds".format(self.config['tweet_interval']))
+                self.log.info("Next tweet in {} seconds".format(self.config['tweet_interval']))
                 self.state['last_tweet_time'] = time.time()
 
             # run custom action
@@ -402,7 +407,7 @@ class TwitterBot:
             # save current state
             self._save_state()
 
-            logging.info("Sleeping for a bit...")
+            self.log.info("Sleeping for a bit...")
             time.sleep(30)
 
 
