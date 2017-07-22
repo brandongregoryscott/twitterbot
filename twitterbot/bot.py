@@ -13,6 +13,7 @@ import codecs
 import json
 import logging
 import twython
+from twython import TwythonError
 import time
 import re
 import random
@@ -121,14 +122,6 @@ class TwitterBot:
         """
         raise NotImplementedError("You MUST have bot_init() implemented in your bot! What have you DONE!")
 
-    def _log_twython_error(self, message, e):
-        try:
-            e_message = e.message[0]['message']
-            code = e.message[0]['code']
-            self.log.error("{}: {} ({})".format(message, e_message, code))
-        except:
-            self.log.error(message)
-
     def _tweet_url(self, tweet):
         return "http://twitter.com/" + tweet['user']['screen_name'] + "/status/" + tweet['id_str']
 
@@ -168,8 +161,8 @@ class TwitterBot:
                 self.api.create_friendship(user_id=f_id, follow=True)
                 self.state['friends'].append(f_id)
                 self.log.info('Followed user id {}'.format(f_id))
-            except twython.TwythonError as e:
-                self._log_twython_error('Unable to follow user', e)
+            except TwythonError as e:
+                self.log.error('Unable to follow user: {} {}'.format(e.error_code, e.msg))
 
             time.sleep(3)
 
@@ -197,8 +190,8 @@ class TwitterBot:
             self.log.info('Status posted at {}'.format(self._tweet_url(tweet)))
             return True
 
-        except twython.TwythonError as e:
-            self._log_twython_error('Can\'t post status', e)
+        except TwythonError as e:
+            self.log.error('Can\'t post status: {} {}'.format(e.error_code, e.msg))
             return False
 
     def favorite_tweet(self, tweet):
@@ -206,8 +199,8 @@ class TwitterBot:
             self.log.info('Faving ' + self._tweet_url(tweet))
             self.api.create_favorite(id=tweet['id'])
 
-        except twython.TwythonError as e:
-            self._log_twython_error('Can\'t fav status', e)
+        except TwythonError as e:
+            self.log.error('Can\'t fav status: {} {}'.format(e.error_code, e.msg))
 
     def _ignore_method(self, method):
         return hasattr(method, 'not_implemented') and method.not_implemented
@@ -282,8 +275,8 @@ class TwitterBot:
             self.log.info('Mentions updated ({} retrieved, {} total in queue)'.format(len(current_mentions),
                                                                                       len(self.state['mention_queue'])))
 
-        except twython.TwythonError as e:
-            self._log_twython_error('Can\'t retrieve mentions', e)
+        except TwythonError as e:
+            self.log.error('Can\'t retrieve mentions: {} {}'.format(e.error_code, e.msg))
 
         except IncompleteRead as e:
             self.log.error('Incomplete read error -- skipping mentions update')
@@ -320,8 +313,8 @@ class TwitterBot:
 
             self.log.info('Timeline updated ({} retrieved)'.format(len(current_timeline)))
 
-        except twython.TwythonError as e:
-            self._log_twython_error('Can\'t retrieve timeline', e)
+        except TwythonError as e:
+            self.log.error('Can\'t retrieve timeline: {} {}'.format(e.error_code, e.msg))
 
         except IncompleteRead as e:
             self.log.error('Incomplete read error -- skipping timeline update')
@@ -338,8 +331,8 @@ class TwitterBot:
 
             self.config['last_follow_check'] = time.time()
 
-        except twython.TwythonError as e:
-            self._log_twython_error('Can\'t update followers', e)
+        except TwythonError as e:
+            self.log.error('Can\'t update followers: {} {}'.format(e.error_code, e.msg))
 
         except IncompleteRead as e:
             self.log.error('Incomplete read error -- skipping followers update')
