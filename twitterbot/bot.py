@@ -50,6 +50,8 @@ class TwitterBot:
 
         self.config['reply_interval'] = 10
         self.config['reply_interval_range'] = None
+        self.config['reply_chain_filtering'] = True
+        self.config['reply_chain_limit'] = 3
 
         self.config['ignore_timeline_mentions'] = True
 
@@ -249,6 +251,21 @@ class TwitterBot:
 
         return ' '.join(mention_back)
 
+    def filter_reply_chain_tweets(self, timeline):
+        filtered_list = timeline.copy()
+        for tweet in timeline:
+            reply_id = tweet['in_reply_to_status_id']
+            reply_count = 0
+            while reply_id is not None:
+                reply_status = self.api.show_status(id=reply_id)
+                reply_id = reply_status['in_reply_to_status_id']
+                if reply_status['user']['id'] == self.id:
+                    reply_count += 1
+            if reply_count > self.config['reply_chain_limit']:
+                self.log.info('Tweet id {} has past the reply chain limit, removing from queue'.format(tweet['id']))
+                filtered_list.remove(tweet)
+        return filtered_list
+
     def _check_mentions(self):
         """
         Checks mentions and loads most recent tweets into the mention queue
@@ -264,6 +281,9 @@ class TwitterBot:
             if self.config['reply_direct_mention_only']:
                 current_mentions = [t for t in current_mentions if
                                     re.split('[^@\w]', t['text'])[0] == '@' + self.screen_name]
+
+            if self.config['reply_chain_filtering']:
+                current_mentions = self.filter_reply_chain_tweets(current_mentions)
 
             if len(current_mentions) != 0:
                 self.state['last_mention_id'] = current_mentions[0]['id']
