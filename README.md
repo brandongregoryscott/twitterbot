@@ -33,7 +33,8 @@ Cool! you're ready to start using twitterbot!
    Many default values are filled in, but you MUST provide your API/access
    keys/secrets in the configuration in this part. There are also several
    other options which you can change or delete if you're okay with the
-   defaults.
+   defaults. This version allows you to modify the state dictionary as well,
+   if you require that functionality (for example, modifying the last_mention_id).
 
 4. The methods `on_scheduled_tweet`, `on_mention`, and `on_timeline` are what
    define the behavior of your bot, and deal with making public tweets to your
