@@ -6,16 +6,17 @@ A Python framework for creating interactive Twitter bots! CURRENTLY SUPER BETA. 
 
 ## Installation
 
-Due to dependencies on [Tweepy](https://github.com/tweepy/tweepy), twitterbot only supports Python 2.7 and *not*
-Python 3. Sorry :(
+This forked version of the [twitterbot](https://github.com/thricedotted/twitterbot.git) repository uses
+[Twython](https://twython.readthedocs.io/en/latest/) instead of [Tweepy](https://github.com/tweepy/tweepy) and has
+been modified to use Python 3 friendly code.
 
 I recommend setting it up in a virtualenv, because, well, yeah.
 
 ``` bash
 mkdir bots && cd bots
-virtualenv-2.7 venv && source venv/bin/activate
+virtualenv venv && source venv/bin/activate
 pip install tweepy
-git clone https://github.com/thricedotted/twitterbot.git
+git clone https://github.com/brandongregoryscott/twitterbot.git
 cd twitterbot && python setup.py install && cd ..
 ```
 
