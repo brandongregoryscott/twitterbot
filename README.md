@@ -11,7 +11,7 @@ I recommend setting it up in a virtualenv, because, well, yeah.
 ``` bash
 mkdir bots && cd bots
 virtualenv venv && source venv/bin/activate
-pip install tweepy
+pip install twython
 git clone https://github.com/brandongregoryscott/twitterbot.git
 cd twitterbot && python setup.py install && cd ..
 ```
