@@ -256,17 +256,16 @@ class TwitterBot:
         for tweet in timeline:
             reply_id = tweet['in_reply_to_status_id']
             reply_count = 0
-            error = False
-            while reply_id is not None and not error:
+            while reply_id is not None:
                 try:
                     reply_status = self.api.show_status(id=reply_id)
                     reply_id = reply_status['in_reply_to_status_id']
                     if reply_status['user']['id'] == self.id:
                         reply_count += 1
                 except TwythonError as e:
-                    error = True
+                    reply_id = None
                     self.log.error('Can\'t retrieve status {}: {} {}'.format(reply_id, e.error_code, e.msg))
-            if reply_count > self.config['reply_chain_limit']:
+            if reply_count >= self.config['reply_chain_limit']:
                 self.log.info('Tweet id {} has past the reply chain limit, removing from queue'.format(tweet['id']))
                 filtered_list.remove(tweet)
         return filtered_list
