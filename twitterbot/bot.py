@@ -18,7 +18,6 @@ import time
 import re
 import random
 import pickle as pickle
-
 from http.client import IncompleteRead
 
 
@@ -89,18 +88,62 @@ class TwitterBot:
             with self.config['storage'].read(self.screen_name) as f:
                 self.state = pickle.load(f)
 
-        except IOError:
-            self.state['last_timeline_id'] = 1 if 'last_timeline_id' not in self.state.keys() else self.state['last_timeline_id']
-            self.state['last_mention_id'] = 1 if 'last_mention_id' not in self.state.keys() else self.state['last_mention_id']
+        except:
+            self.log.info('Pickle file not found. Setting default values.')
 
-            self.state['last_timeline_time'] = 0 if 'last_timeline_time' not in self.state.keys() else self.state['last_timeline_time']
-            self.state['last_mention_time'] = 0 if 'last_mention_time' not in self.state.keys() else self.state['last_mention_time']
+            mentions_timeline = self.api.get_mentions_timeline(count=200)
+            if len(mentions_timeline) > 0:
+                last_mention = mentions_timeline[0]
+                last_mention_id = last_mention['id']
+                last_mention_time = time.mktime(time.strptime(last_mention['created_at'], "%a %b %d %H:%M:%S +0000 %Y"))
+            else:
+                last_mention_id = 1
+                last_mention_time = time.time()
 
-            self.state['last_tweet_id'] = 1 if 'last_tweet_id' not in self.state.keys() else self.state['last_tweet_id']
-            self.state['last_tweet_time'] = 1 if 'last_tweet_time' not in self.state.keys() else self.state['last_tweet_time']
+            home_timeline = self.api.get_home_timeline(count=200)
+            if len(home_timeline) > 0:
+                last_timeline = home_timeline[0]
+                last_timeline_id = last_timeline['id']
+                last_timeline_time = time.mktime(time.strptime(last_timeline['created_at'], "%a %b %d %H:%M:%S +0000 %Y"))
+            else:
+                last_timeline_id = 1
+                last_timeline_time = time.time()
 
-            self.state['last_reply_id'] = 0 if 'last_reply_id' not in self.state.keys() else self.state['last_reply_id']
-            self.state['last_reply_time'] = 0 if 'last_reply_time' not in self.state.keys() else self.state['last_reply_time']
+            user_timeline = self.api.get_user_timeline(user_id=self.id, exclude_replies=True, count=200)
+            if len(user_timeline) > 0:
+                last_tweet = user_timeline[0]
+                last_tweet_id = last_tweet['id']
+                last_tweet_time = time.mktime(time.strptime(last_tweet['created_at'], "%a %b %d %H:%M:%S +0000 %Y"))
+            else:
+                last_tweet_id = 1
+                last_tweet_time = time.time()
+
+            user_timeline = self.api.get_user_timeline(user_id=self.id, count=200)
+            last_reply = None
+            if len(user_timeline) > 0:
+                i = 0
+                last_reply = user_timeline[i]
+                while last_reply['in_reply_to_status_id'] is None:
+                    i += 1
+                    last_reply = user_timeline[i]
+            if last_reply is not None:
+                last_reply_id = last_reply['id']
+                last_reply_time = time.mktime(time.strptime(last_reply['created_at'], "%a %b %d %H:%M:%S +0000 %Y"))
+            else:
+                last_reply_id = 1
+                last_reply_time = time.time()
+
+            self.state['last_timeline_id'] = last_timeline_id if 'last_timeline_id' not in self.state.keys() else self.state['last_timeline_id']
+            self.state['last_mention_id'] = last_mention_id if 'last_mention_id' not in self.state.keys() else self.state['last_mention_id']
+
+            self.state['last_timeline_time'] = last_timeline_time if 'last_timeline_time' not in self.state.keys() else self.state['last_timeline_time']
+            self.state['last_mention_time'] = last_mention_time if 'last_mention_time' not in self.state.keys() else self.state['last_mention_time']
+
+            self.state['last_tweet_id'] = last_tweet_id if 'last_tweet_id' not in self.state.keys() else self.state['last_tweet_id']
+            self.state['last_tweet_time'] = last_tweet_time if 'last_tweet_time' not in self.state.keys() else self.state['last_tweet_time']
+
+            self.state['last_reply_id'] = last_reply_id if 'last_reply_id' not in self.state.keys() else self.state['last_reply_id']
+            self.state['last_reply_time'] = last_reply_time if 'last_reply_time' not in self.state.keys() else self.state['last_reply_time']
 
             self.state['recent_timeline'] = []
             self.state['mention_queue'] = []
@@ -111,6 +154,8 @@ class TwitterBot:
         self.state['last_follow_check'] = 0
 
         self.log.info('Bot initialized!')
+        self.log.info(self.state)
+
 
     def bot_init(self):
         """
