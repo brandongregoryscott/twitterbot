@@ -90,23 +90,17 @@ class TwitterBot:
                 self.state = pickle.load(f)
 
         except IOError:
-            self.state['last_timeline_id'] = 1 if 'last_timeline_id' not in self.state.keys() else self.state[
-                'last_timeline_id']
-            self.state['last_mention_id'] = 1 if 'last_mention_id' not in self.state.keys() else self.state[
-                'last_mention_id']
+            self.state['last_timeline_id'] = 1 if 'last_timeline_id' not in self.state.keys() else self.state['last_timeline_id']
+            self.state['last_mention_id'] = 1 if 'last_mention_id' not in self.state.keys() else self.state['last_mention_id']
 
-            self.state['last_timeline_time'] = 0 if 'last_mention_id' not in self.state.keys() else self.state[
-                'last_mention_id']
-            self.state['last_mention_time'] = 0 if 'last_mention_time' not in self.state.keys() else self.state[
-                'last_mention_time']
+            self.state['last_timeline_time'] = 0 if 'last_timeline_time' not in self.state.keys() else self.state['last_timeline_time']
+            self.state['last_mention_time'] = 0 if 'last_mention_time' not in self.state.keys() else self.state['last_mention_time']
 
             self.state['last_tweet_id'] = 1 if 'last_tweet_id' not in self.state.keys() else self.state['last_tweet_id']
-            self.state['last_tweet_time'] = 1 if 'last_tweet_time' not in self.state.keys() else self.state[
-                'last_tweet_time']
+            self.state['last_tweet_time'] = 1 if 'last_tweet_time' not in self.state.keys() else self.state['last_tweet_time']
 
             self.state['last_reply_id'] = 0 if 'last_reply_id' not in self.state.keys() else self.state['last_reply_id']
-            self.state['last_reply_time'] = 0 if 'last_reply_time' not in self.state.keys() else self.state[
-                'last_reply_time']
+            self.state['last_reply_time'] = 0 if 'last_reply_time' not in self.state.keys() else self.state['last_reply_time']
 
             self.state['recent_timeline'] = []
             self.state['mention_queue'] = []
