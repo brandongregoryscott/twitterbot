@@ -394,18 +394,18 @@ class TwitterBot:
 
             # check mentions every minute-ish
             # if self.reply_to_mentions and (time.time() - self.last_mention_time) > 60:
-            if (time.time() - self.state['last_mention_time']) > 60:
+            if time.time() - float(self.state['last_mention_time']) > 60:
                 self._check_mentions()
                 self._handle_mentions()
 
             # tweet to timeline
             # if self.reply_to_timeline and (time.time() - self.last_mention_time) > 60:
-            if (time.time() - self.state['last_timeline_time']) > 60:
+            if time.time() - float(self.state['last_timeline_time']) > 60:
                 self._check_timeline()
                 self._handle_timeline()
 
             # tweet to timeline on the correct interval
-            if (time.time() - self.state['last_tweet_time']) > self.config['tweet_interval']:
+            if time.time() - float(self.state['last_tweet_time']) > self.config['tweet_interval']:
                 self.on_scheduled_tweet()
 
                 # TODO: maybe this should only run if the above is successful...
