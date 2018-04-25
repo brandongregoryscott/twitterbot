@@ -59,6 +59,8 @@ class TwitterBot:
         self.config['logging_datefmt'] = '%m/%d/%Y %I:%M:%S %p'
         self.config['storage'] = FileStorage()
 
+        self.config['sleep_time'] = 30
+
         self.state = {}
 
         # call the custom initialization
@@ -463,8 +465,8 @@ class TwitterBot:
             # save current state
             self._save_state()
 
-            self.log.info("Sleeping for a bit...")
-            time.sleep(30)
+            self.log.info("Sleeping for a bit for {} seconds...".format(self.config['sleep_time']))
+            time.sleep(self.config['sleep_time'])
 
 
 class FileStorage(object):
