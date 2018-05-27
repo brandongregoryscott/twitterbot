@@ -18,6 +18,7 @@ import time
 import re
 import random
 import pickle as pickle
+import copy
 from http.client import IncompleteRead
 
 
@@ -121,19 +122,19 @@ class TwitterBot:
                 last_tweet_time = time.time()
 
             user_timeline = self.api.get_user_timeline(user_id=self.id, count=200)
-            last_reply = None
-            if len(user_timeline) > 0:
-                i = 0
-                last_reply = user_timeline[i]
-                while last_reply['in_reply_to_status_id'] is None:
-                    i += 1
-                    last_reply = user_timeline[i]
-            if last_reply is not None:
-                last_reply_id = last_reply['id']
-                last_reply_time = time.mktime(time.strptime(last_reply['created_at'], "%a %b %d %H:%M:%S +0000 %Y"))
-            else:
-                last_reply_id = 1
-                last_reply_time = time.time()
+            last_reply_id = 1
+            last_reply_time = time.time()
+            if user_timeline is not None and len(user_timeline) > 0:
+                temp_user_timeline = copy.deepcopy(user_timeline)
+                last_reply = temp_user_timeline.pop()
+                while len(temp_user_timeline) > 0 and last_reply['in_reply_to_status_id'] is None:
+                    last_reply = temp_user_timeline.pop()
+                    if last_reply is not None:
+                        last_reply_id = last_reply['id']
+                        last_reply_time = time.mktime(time.strptime(last_reply['created_at'], "%a %b %d %H:%M:%S +0000 %Y"))
+                    else:
+                        last_reply_id = 1
+                        last_reply_time = time.time()
 
             self.state['last_timeline_id'] = last_timeline_id if 'last_timeline_id' not in self.state.keys() else self.state['last_timeline_id']
             self.state['last_mention_id'] = last_mention_id if 'last_mention_id' not in self.state.keys() else self.state['last_mention_id']
