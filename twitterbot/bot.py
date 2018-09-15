@@ -55,6 +55,7 @@ class TwitterBot:
 
         self.config['ignore_timeline_mentions'] = True
 
+        self.config['file_log'] = False
         self.config['logging_level'] = logging.DEBUG
         self.config['logging_format'] = '%(asctime)s | %(levelname)s: %(message)s'
         self.config['logging_datefmt'] = '%m/%d/%Y %I:%M:%S %p'
@@ -73,10 +74,11 @@ class TwitterBot:
         self.id = self.api.verify_credentials()["id"]
         self.screen_name = self.api.verify_credentials()["screen_name"]
 
-        logging.basicConfig(filename=self.screen_name + '.log',
-                            level=self.config['logging_level'],
-                            format=self.config['logging_format'],
-                            datefmt=self.config['logging_datefmt'])
+        if self.config['file_log']:
+            logging.basicConfig(filename=self.screen_name + '.log',
+                                level=self.config['logging_level'],
+                                format=self.config['logging_format'],
+                                datefmt=self.config['logging_datefmt'])
 
         self.log = logging.getLogger(self.screen_name)
         self.log.setLevel(self.config['logging_level'])
