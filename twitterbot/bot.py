@@ -82,10 +82,6 @@ class TwitterBot:
 
         self.log = logging.getLogger(self.screen_name)
         self.log.setLevel(self.config['logging_level'])
-        # stdout_handler = logging.StreamHandler(sys.stdout)
-        # stdout_handler.setFormatter(logging.Formatter(fmt=self.config['logging_format'], datefmt=self.config['logging_datefmt']))
-        # stdout_handler.setLevel(logging.INFO)
-        # self.log.addHandler(stdout_handler)
 
         self.log.info('Initializing bot...')
 
