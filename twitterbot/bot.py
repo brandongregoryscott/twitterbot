@@ -446,7 +446,7 @@ class TwitterBot:
                 self._handle_timeline()
 
             # tweet to timeline on the correct interval
-            if time.time() - float(self.state['last_tweet_time']) > self.config['tweet_interval']:
+            if abs(time.time() - float(self.state['last_tweet_time'])) > self.config['tweet_interval']:
                 self.on_scheduled_tweet()
 
                 # TODO: maybe this should only run if the above is successful...
