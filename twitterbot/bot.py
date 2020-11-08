@@ -156,6 +156,7 @@ class TwitterBot:
 
         self.log.info('Bot initialized!')
         self.log.info(self.state)
+        self.log.info(self.config)
 
 
     def bot_init(self):
@@ -230,11 +231,11 @@ class TwitterBot:
 
             tweet = cmd(**kwargs)
             self.log.info('Status posted at {}'.format(self._tweet_url(tweet)))
-            return True
+            return tweet
 
         except TwythonError as e:
             self.log.error('Can\'t post status: {} {}'.format(e.error_code, e.msg))
-            return False
+            return None
 
     def favorite_tweet(self, tweet):
         try:
